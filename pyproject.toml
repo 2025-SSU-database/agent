@@ -3,4 +3,7 @@ name = "senior-agent"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "langchain>=1.0.3",
+    "langchain-openai>=1.0.1",
+]
