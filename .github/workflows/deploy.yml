@@ -36,7 +36,7 @@ jobs:
 
     - name: Substitute secrets in task definition
       run: |
-        sed -i "s/ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g" agent/ecs-task-definition.json
+        sed -i "s/ACCOUNT_ID_PLACEHOLDER/${{ secrets.AWS_ACCOUNT_ID }}/g" ecs-task-definition.json
 
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
