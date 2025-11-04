@@ -7,11 +7,11 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: agent-service
-  ECS_SERVICE: agent-service
-  ECS_CLUSTER: ssu-database-cluster
+  ECR_REPOSITORY: agent
+  ECS_SERVICE: agent
+  ECS_CLUSTER: zenior-cluster
   ECS_TASK_DEFINITION: agent-task-definition
-  CONTAINER_NAME: agent-service
+  CONTAINER_NAME: agent
 
 jobs:
   deploy:
