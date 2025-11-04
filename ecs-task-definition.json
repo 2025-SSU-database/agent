@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "agent",
-      "image": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com/agent:latest",
+      "image": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com/zenior/agent:latest",
       "essential": true,
       "portMappings": [
         {
