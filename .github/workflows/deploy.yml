@@ -2,12 +2,12 @@ name: Deploy Agent Service to ECS
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: agent
+  ECR_REPOSITORY: zenior/agent
   ECS_SERVICE: agent
   ECS_CLUSTER: zenior-cluster
   ECS_TASK_DEFINITION: agent-task-definition
