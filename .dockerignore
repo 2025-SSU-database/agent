@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Tests
+test_*.py
+test_*.html
+
+# Documentation
+*.md
+!README.md
+
+# Environment
+.env.local
+.env.*.local
+
+# Other
+uv.lock
+

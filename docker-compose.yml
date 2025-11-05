@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  agent-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env
+    volumes:
+      # 개발 중에는 코드 변경 시 자동 반영 (선택사항)
+      - ./src:/app/src
+    restart: unless-stopped
+

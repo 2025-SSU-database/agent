@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent 스트리밍 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .response-container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-left: 4px solid #007bff;
+            background-color: white;
+            border-radius: 3px;
+        }
+        .message.node {
+            border-left-color: #28a745;
+            background-color: #f0f9f4;
+        }
+        .message.success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .message-type {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        .message.node .message-type {
+            color: #28a745;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #dc3545;
+            border-left-color: #dc3545;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Agent 스트리밍 테스트</h1>
+        
+        <div class="input-group">
+            <label for="message">메시지 입력:</label>
+            <textarea id="message" rows="4" placeholder="예: 스포티파이 클론 프로젝트, 팀원: 1, 5, 기간: 오늘부터 3개월"></textarea>
+        </div>
+        
+        <div>
+            <button id="streamBtn" onclick="testStreaming()">스트리밍 전송</button>
+            <button id="normalBtn" onclick="testNormal()">일반 전송</button>
+            <button id="clearBtn" onclick="clearResponse()">결과 지우기</button>
+        </div>
+        
+        <div class="response-container" id="response">
+            <p style="color: #999;">여기에 응답이 표시됩니다...</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        
+        async function testStreaming() {
+            const message = document.getElementById('message').value;
+            if (!message.trim()) {
+                alert('메시지를 입력하세요!');
+                return;
+            }
+            
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = '<p class="loading">⏳ 스트리밍 중...</p>';
+            
+            const streamBtn = document.getElementById('streamBtn');
+            const normalBtn = document.getElementById('normalBtn');
+            streamBtn.disabled = true;
+            normalBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_URL}/agent/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                responseDiv.innerHTML = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) {
+                        break;
+                    }
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.substring(6);
+                            
+                            if (data === '[DONE]') {
+                                appendMessage('✅ 스트림 완료', '', 'success');
+                                continue;
+                            }
+                            
+                            try {
+                                const jsonData = JSON.parse(data);
+                                
+                                if (jsonData.event_type === 'error') {
+                                    appendMessage('❌ Error', jsonData.error, 'error');
+                                } else if (jsonData.event_type === 'node_update') {
+                                    // 노드 업데이트 표시
+                                    let content = `🔄 노드: ${jsonData.node}`;
+                                    if (jsonData.request_type) {
+                                        content += `\n📋 분류: ${jsonData.request_type}`;
+                                    }
+                                    if (jsonData.message) {
+                                        content += `\n💬 ${jsonData.message.type}: ${jsonData.message.content}`;
+                                    }
+                                    appendMessage(
+                                        `노드 실행: ${jsonData.node}`,
+                                        content,
+                                        'node'
+                                    );
+                                } else if (jsonData.error) {
+                                    appendMessage('Error', jsonData.error, 'error');
+                                } else {
+                                    // 레거시 형식 지원
+                                    appendMessage(
+                                        jsonData.type || 'Message',
+                                        jsonData.content || JSON.stringify(jsonData),
+                                        'normal'
+                                    );
+                                }
+                            } catch (e) {
+                                console.error('JSON 파싱 오류:', e, data);
+                            }
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                appendMessage('Error', `요청 실패: ${error.message}`, 'error');
+            } finally {
+                streamBtn.disabled = false;
+                normalBtn.disabled = false;
+            }
+        }
+        
+        async function testNormal() {
+            const message = document.getElementById('message').value;
+            if (!message.trim()) {
+                alert('메시지를 입력하세요!');
+                return;
+            }
+            
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = '<p class="loading">⏳ 처리 중...</p>';
+            
+            const streamBtn = document.getElementById('streamBtn');
+            const normalBtn = document.getElementById('normalBtn');
+            streamBtn.disabled = true;
+            normalBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_URL}/agent`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                responseDiv.innerHTML = '';
+                
+                if (data.error) {
+                    appendMessage('Error', data.error, 'error');
+                } else {
+                    appendMessage(
+                        data.type || 'Message',
+                        data.content || JSON.stringify(data),
+                        'normal'
+                    );
+                }
+                
+            } catch (error) {
+                responseDiv.innerHTML = '';
+                appendMessage('Error', `요청 실패: ${error.message}`, 'error');
+            } finally {
+                streamBtn.disabled = false;
+                normalBtn.disabled = false;
+            }
+        }
+        
+        function appendMessage(type, content, style = 'normal') {
+            const responseDiv = document.getElementById('response');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${style === 'error' ? 'error' : ''}`;
+            
+            const typeDiv = document.createElement('div');
+            typeDiv.className = 'message-type';
+            typeDiv.textContent = type;
+            
+            const contentPre = document.createElement('pre');
+            contentPre.textContent = content;
+            
+            messageDiv.appendChild(typeDiv);
+            messageDiv.appendChild(contentPre);
+            responseDiv.appendChild(messageDiv);
+            
+            // 자동 스크롤
+            responseDiv.scrollTop = responseDiv.scrollHeight;
+        }
+        
+        function clearResponse() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = '<p style="color: #999;">여기에 응답이 표시됩니다...</p>';
+        }
+        
+        // 예시 메시지들
+        const examples = [
+            "스포티파이 클론 프로젝트, 팀원: 1, 5, 기간: 오늘부터 3개월",
+            "마케팅 캠페인 프로젝트, 팀원: 영업팀, 디자인팀, 기간: 2주",
+            "안녕하세요, 파이썬에 대해 설명해주세요"
+        ];
+        
+        // 페이지 로드 시 첫 번째 예시 표시
+        window.onload = function() {
+            document.getElementById('message').value = examples[0];
+        }
+    </script>
+</body>
+</html>
+
