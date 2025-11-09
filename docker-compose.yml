@@ -1,7 +1,19 @@
 version: '3.8'
 
 services:
-  agent-api:
+  mcp:
+    build:
+      context: ../mcp-server
+      dockerfile: Dockerfile
+    container_name: mcp
+    ports:
+      - "5001:5001"
+    depends_on:
+      - agent
+    networks:
+      - agent-network
+
+  agent:
     build: .
     ports:
       - "8000:8000"
@@ -13,4 +25,9 @@ services:
       # 개발 중에는 코드 변경 시 자동 반영 (선택사항)
       - ./src:/app/src
     restart: unless-stopped
+    networks:
+      - agent-network
 
+networks:
+  agent-network:
+    driver: bridge

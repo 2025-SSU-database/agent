@@ -10,10 +10,10 @@ from .backlog_maker import backlog_agent
 load_dotenv()
 
 @tool
-def analyze_user_input(request: str) -> str:
+async def analyze_user_input(request: str) -> str:
     """Analyze user input"""
-
-    result = user_input_analyze_agent.invoke({
+    agent = await user_input_analyze_agent()
+    result = await agent.ainvoke({
         "messages": [{ "role": "user", "content": request }],
     })
 
@@ -31,7 +31,7 @@ def create_backlog(request: str) -> str:
     return result["messages"][-1].text
 
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-5")
 
 tools = [analyze_user_input, create_backlog]
 

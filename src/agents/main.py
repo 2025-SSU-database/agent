@@ -43,10 +43,11 @@ def classify_request(state: State) -> Literal["it_scrum_agent", "general_scrum_a
 
     return response.classification
 
-def it_scrum_node(state: State) -> State:
+async def it_scrum_node(state: State) -> State:
     """IT 스크럼 생성 에이전트 호출"""
+
     # 전체 messages를 전달하거나, 마지막 메시지의 텍스트만 추출
-    result = it_scrum_agent.invoke({
+    result = await it_scrum_agent.ainvoke({
         "messages": state["messages"]
     })
 
@@ -104,13 +105,29 @@ graph = graph_builder.compile()
 
 
 if __name__ == '__main__':
+    import asyncio
+    
     # 테스트
-    test_it_scrum_request = "스포티파이 클론 프로젝트, 팀원: 1, 5, 기간: 오늘부터 3개월"
-    test_general_scrum_request = "마케팅 캠페인 프로젝트, 팀원: 영업팀, 디자인팀, 기간: 2주"
-    test_general_request = "안녕하세요, 파이썬에 대해 설명해주세요"
+    async def test_graph():
+        test_it_scrum_request = "스포티파이 클론 프로젝트, 팀원: 1, 5, 기간: 오늘부터 3개월, 스포티파이를 클론하는 프로젝트입니다."
+        test_general_scrum_request = "마케팅 캠페인 프로젝트, 팀원: 영업팀, 디자인팀, 기간: 2주"
+        test_general_request = "안녕하세요, 파이썬에 대해 설명해주세요"
 
-    result = graph.invoke({
-        "messages": [{"role": "user", "content": test_general_request}],
-    })
-
-    print(result["messages"][-1])
+        print(f"\n🧪 테스트 시작: {test_it_scrum_request}\n")
+        print("=" * 80)
+        
+        # 스트림 모드로 테스트
+        async for event in graph.astream(
+            {"messages": [{"role": "user", "content": test_it_scrum_request}]},
+            stream_mode="updates"
+        ):
+            for node_name, node_data in event.items():
+                print(f"\n🔄 노드 실행: {node_name}")
+                if "messages" in node_data and len(node_data["messages"]) > 0:
+                    last_msg = node_data["messages"][-1]
+                    print(f"   메시지: {last_msg.content[:100]}...")
+        
+        print("\n" + "=" * 80)
+        print("✅ 테스트 완료\n")
+    
+    asyncio.run(test_graph())
