@@ -35,6 +35,10 @@ def hello_world():
     return {"message": "Hello World"}
 
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 @app.post("/agent/stream")
 async def zenior_agent_stream(request: ChatRequest):
     """스트리밍 방식으로 에이전트 응답 반환 - 각 노드/툴 실행마다 업데이트"""

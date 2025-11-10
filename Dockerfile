@@ -2,6 +2,10 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget && \
+    rm -rf /var/lib/apt/lists/*
+
 # 전체 소스 코드 복사
 COPY pyproject.toml .
 COPY src/ ./src/
