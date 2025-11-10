@@ -17,10 +17,28 @@
           "protocol": "tcp"
         }
       ],
+      "environment": [
+        {
+          "name": "LANGSMITH_ENDPOINT",
+          "value": "https://api.smith.langchain.com"
+        }
+      ],
       "secrets": [
         {
           "name": "OPENAI_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:ACCOUNT_ID_PLACEHOLDER:secret:agent-L3Q2IJ:OPENAI_API_KEY::"
+        },
+        {
+          "name": "LANGSMITH_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:ACCOUNT_ID_PLACEHOLDER:secret:agent-L3Q2IJ:LANGSMITH_API_KEY::"
+        },
+        {
+          "name": "LANGSMITH_PROJECT",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:ACCOUNT_ID_PLACEHOLDER:secret:agent-L3Q2IJ:LANGSMITH_PROJECT::"
+        },
+        {
+          "name": "ZENIOR_MCP_SERVER_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:ACCOUNT_ID_PLACEHOLDER:secret:agent-L3Q2IJ:ZENIOR_MCP_SERVER_URL::"
         }
       ],
       "logConfiguration": {
