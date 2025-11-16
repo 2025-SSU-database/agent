@@ -1,3 +1,3 @@
-from .main import graph
+from .main import get_graph
 
-__all__ = ["graph"]
+__all__ = ["get_graph"]

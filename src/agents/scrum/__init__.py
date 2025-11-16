@@ -1,4 +1,4 @@
-from .it import supervisor_agent as it_scrum_agent
+from .it import create_supervisor as it_scrum_agent
 from .general import supervisor_agent as general_scrum_agent
 
 __all__ = [

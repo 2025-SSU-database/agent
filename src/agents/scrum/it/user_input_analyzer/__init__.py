@@ -1,3 +1,3 @@
-from .agent import user_input_analyze_agent
+from .agent import create_user_input_analyzer
 
-__all__ = ["user_input_analyze_agent"]
+__all__ = ["create_user_input_analyzer"]

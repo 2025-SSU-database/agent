@@ -1,3 +1,3 @@
-from .agent import backlog_agent
+from .agent import create_backlog_generator
 
-__all__ = ["backlog_agent"]
+__all__ = ["create_backlog_generator"]

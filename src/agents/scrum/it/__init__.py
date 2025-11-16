@@ -1,3 +1,3 @@
-from .supervisor import supervisor_agent
+from .supervisor import create_supervisor
 
-__all__ = ["supervisor_agent"]
+__all__ = ["create_supervisor"]
