@@ -2,13 +2,14 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
 
-from langchain.agents import create_agent
+from agents.utils.agent_utils import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 from langgraph.types import interrupt
+from langchain_core.runnables import RunnableConfig
 
 from dotenv import load_dotenv
 
@@ -92,7 +93,7 @@ def extract_json_from_message(message: AIMessage) -> Optional[dict]:
         return None
 
 
-async def create_backlog_generator():
+async def create_backlog_generator(config: RunnableConfig):
     """백로그 생성 에이전트 생성"""
     return create_agent(
         name="Backlog",
@@ -121,6 +122,7 @@ async def create_backlog_generator():
             - If any required information is missing or unclear, use the collect_more_data_from_user tool to ask clarifying questions
             - Ask specific, concise questions one at a time when needed
 
-            {parser.get_format_instructions()}
-        """
+            Return the following information in a structured JSON format:
+        """,
+        response_format=BacklogOutput
     )

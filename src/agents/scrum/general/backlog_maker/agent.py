@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 from datetime import datetime
 
-from langchain.agents import create_agent
+from agents.utils.agent_utils import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser

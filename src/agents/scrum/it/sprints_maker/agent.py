@@ -2,13 +2,14 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import json
 
-from langchain.agents import create_agent
+from agents.utils.agent_utils import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 from langgraph.types import interrupt
+from langchain_core.runnables import RunnableConfig
 
 from dotenv import load_dotenv
 
@@ -35,8 +36,6 @@ class SprintsOutput(BaseModel):
     project_name: str = Field(description="Name of the project")
     sprint_duration_weeks: int = Field(description="Duration of each sprint in weeks")
     sprints: List[SprintItem] = Field(description="List of sprints")
-
-parser = JsonOutputParser(pydantic_object=SprintsOutput)
 
 # Tool to calculate sprint dates
 @tool
@@ -118,35 +117,7 @@ def collect_more_data_from_user(question: str) -> str:
 
 tools = [calculate_sprint_dates, estimate_team_capacity, distribute_backlog_items]
 
-
-def extract_json_from_message(message: AIMessage) -> Optional[dict]:
-    """AI 메시지에서 JSON 추출"""
-    if not isinstance(message, AIMessage):
-        return None
-
-    content = message.content
-    if not isinstance(content, str):
-        return None
-
-    # JSON 코드 블록에서 추출
-    if "```json" in content:
-        start = content.find("```json") + 7
-        end = content.find("```", start)
-        json_str = content[start:end].strip()
-    elif "```" in content:
-        start = content.find("```") + 3
-        end = content.find("```", start)
-        json_str = content[start:end].strip()
-    else:
-        json_str = content.strip()
-
-    try:
-        return json.loads(json_str)
-    except json.JSONDecodeError:
-        return None
-
-
-async def create_sprint_planner():
+async def create_sprint_planner(config: RunnableConfig):
     """스프린트 계획 에이전트 생성"""
     return create_agent(
         name="Sprints",
@@ -177,7 +148,6 @@ async def create_sprint_planner():
             - When creating backlog_items in sprints, use the SprintBacklogItem format with both "title" and "order" fields
             - If any required information is missing or unclear, use the collect_more_data_from_user tool to ask clarifying questions
             - Ask specific, concise questions one at a time when needed
-
-            {parser.get_format_instructions()}
-        """
+        """,
+        response_format=SprintsOutput
     )

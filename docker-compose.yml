@@ -5,11 +5,11 @@ services:
     build:
       context: ../mcp-server
       dockerfile: Dockerfile.dev
-    container_name: mcp
+    container_name: mcp_agent
+    env_file:
+      - .env
     ports:
       - "5001:5001"
-    depends_on:
-      - agent
     networks:
       - agent-network
 
@@ -25,8 +25,23 @@ services:
       # 개발 중에는 코드 변경 시 자동 반영 (선택사항)
       - ./src:/app/src
     restart: unless-stopped
+    depends_on:
+      - mcp
     networks:
       - agent-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chat_ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - agent
+    networks:
+      - agent-network
+    restart: unless-stopped
 
 networks:
   agent-network:
