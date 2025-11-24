@@ -2,6 +2,10 @@ from typing import Any
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class AgentFactory:
 
   def __init__(self, model_name: str):

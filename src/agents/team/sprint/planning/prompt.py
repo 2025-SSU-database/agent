@@ -13,6 +13,7 @@ prompt = """
     - Plan for maximum 2 sprints for this initial phase
     - Each sprint is 2 weeks long
     - Group related tasks together where possible
+    - Include the list of included tasks (titles/ids) in the 'backlog_ids' field
     - Ensure dependencies are respected (if implied by task descriptions)
     - If any required information is missing, use collect_more_data_from_user tool
     - Ask specific, concise questions one at a time

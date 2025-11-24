@@ -3,25 +3,21 @@ import operator
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import RunnableConfig
-from langgraph.prebuilt import ToolNode, tools_condition
 
-from ...mcp_utils import setup_mcp_tools
+from ...schema import Sprint, Backlog   
 from .planning import create_sprint_planning_agent
 
 class SprintState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
-    tasks: List[dict] # Input from backlog
-    sprints: Annotated[List[dict], operator.add]
+    tasks: Annotated[List[Backlog], operator.add]
+    sprints: Annotated[List[Sprint], operator.add]
 
 async def create_sprint_team_graph(config: Optional[RunnableConfig] = None):
     if config is None:
         config = RunnableConfig()
-    
-    # Load MCP tools
-    mcp_tools = await setup_mcp_tools(config) if config else []
 
     # Initialize Agents
-    sprint_planning_agent = await create_sprint_planning_agent(config, tools=mcp_tools)
+    sprint_planning_agent = await create_sprint_planning_agent(config)
     
     # Define Nodes
     async def sprint_planning_node(state: SprintState):
@@ -29,7 +25,15 @@ async def create_sprint_team_graph(config: Optional[RunnableConfig] = None):
         messages = state.get("messages", [])
         if not messages:
             tasks = state.get("tasks", [])
-            task_summaries = [f"- {t['title']} (Effort: {t.get('estimated_effort_hours', 'N/A')}h)" for t in tasks]
+            task_summaries = []
+            for t in tasks:
+                if isinstance(t, dict):
+                    title = t.get("title", "Unknown")
+                    effort = t.get("estimated_effort_hours", "N/A")
+                else:
+                    title = getattr(t, "title", "Unknown")
+                    effort = getattr(t, "estimated_effort_hours", "N/A")
+                task_summaries.append(f"- {title} (Effort: {effort}h)")
             tasks_str = "\n".join(task_summaries)
             
             msg = f"Plan sprints for the following tasks:\n{tasks_str}"
@@ -56,23 +60,9 @@ async def create_sprint_team_graph(config: Optional[RunnableConfig] = None):
     graph = StateGraph(SprintState)
     
     graph.add_node("SprintPlanningNode", sprint_planning_node)
-    graph.add_node("ToolNode", ToolNode(mcp_tools))
-    
+
     graph.set_entry_point("SprintPlanningNode")
     
-    # Add conditional logic:
-    # If tool calls are present -> ToolNode
-    # If finished (no tool calls) -> END
-    graph.add_conditional_edges(
-        "SprintPlanningNode",
-        tools_condition,
-        {
-            "tools": "ToolNode",
-            END: END
-        }
-    )
-    
-    # ToolNode always returns to SprintPlanningNode
-    graph.add_edge("ToolNode", "SprintPlanningNode")
-    
+    graph.add_edge("SprintPlanningNode", END)
+
     return graph.compile()

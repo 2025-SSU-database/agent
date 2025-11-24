@@ -1,7 +1,7 @@
 from datetime import datetime
 import json
 from fastapi.security import HTTPAuthorizationCredentials
-from langchain_core.messages import BaseMessage, AIMessage, AIMessageChunk, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from typing_extensions import Any, Dict
 from fastapi import Depends, FastAPI
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -10,7 +10,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn  
 from typing import Optional 
-from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
@@ -26,17 +25,9 @@ sys.path.insert(0, str(project_root))
 
 graph = None
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global graph
 
-    print("Creating graph...")
-    graph = await create_graph()
-    print("Graph created")
-    yield
-    print("Bye")
+app = FastAPI(dependencies=[Depends(verify_token)])
 
-app = FastAPI(dependencies=[Depends(verify_token)], lifespan=lifespan)
 
 # 정적 파일 서빙 (HTML 클라이언트)
 static_dir = project_root / "static"
@@ -98,7 +89,9 @@ async def get_thread_state(
                 "token": token
             }
         }
-        state = await graph.ainvoke(config=config)
+
+        graph = await create_graph(config=config)
+        state = await graph.get_state(config)
 
         tasks = []
         if hasattr(state, 'tasks'):
@@ -142,10 +135,10 @@ async def stream_run(
                 }
             }
             
-            # 입력 메시지 추가
+            graph = await create_graph(config=config)
+
             input_messages = request.input.get("messages", [])
             
-            # LangGraph 스트리밍 실행 - messages 모드로 메시지만 스트리밍
             async for namespace, chunk in graph.astream(
                 {
                     "messages": input_messages
@@ -155,7 +148,6 @@ async def stream_run(
                 subgraphs=True
             ):
                 for node, values in chunk.items():
-                     # Check for messages in the node output
                     if isinstance(values, dict) and "messages" in values:
                         for message in values["messages"]:
                             if isinstance(message, (AIMessage, AIMessageChunk)):
@@ -167,8 +159,25 @@ async def stream_run(
                                     }
                                     yield f"data: {json.dumps(chunk_data)}\n\n"
                             elif isinstance(message, HumanMessage):
-                                 # We usually don't need to stream back human messages, but handled if needed
                                  pass
+
+            # Check for interrupts or next steps after stream ends
+            snapshot = graph.get_state(config)
+            if snapshot.next:
+                # If there are next steps, it might be an interrupt
+                interrupt_data = {
+                    "thread_id": thread_id,
+                    "next": snapshot.next,
+                    "tasks": [
+                        {
+                            "id": getattr(t, 'id', None),
+                            "name": getattr(t, 'name', None),
+                            "interrupts": getattr(t, 'interrupts', [])
+                        } for t in getattr(snapshot, 'tasks', [])
+                    ]
+                }
+                yield f"event: interrupt\n"
+                yield f"data: {json.dumps(interrupt_data)}\n\n"
 
         except Exception as e:
             yield f"event: error\n"
@@ -193,11 +202,10 @@ async def resume_run(
 ):
     token = credentials.credentials
     
-    """인터럽트된 실행 재개"""
-    
     config = {"configurable": {"thread_id": thread_id, "token": token}}
     
-    # 인터럽트에 대한 응답 전달
+    graph = await create_graph(config=config)
+
     result = await graph.ainvoke(
         resume_data,
         config=config

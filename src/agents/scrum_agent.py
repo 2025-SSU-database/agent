@@ -3,14 +3,15 @@ from typing import List, TypedDict, Annotated, Optional
 import operator
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.state import RunnableConfig
 
-from .team import create_backlog_team_graph, create_sprint_team_graph, create_team_supervisor
+from .team import create_backlog_team_graph, create_sprint_team_graph, create_project_team_graph, create_team_supervisor
+
+from langgraph.checkpoint.memory import MemorySaver
+
+checkpointer = MemorySaver()
 
 MODEL_NAME = "gpt-4o"
-
-memory = MemorySaver()
 
 class ScrumState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
@@ -20,37 +21,34 @@ class ScrumState(TypedDict):
     epics: Annotated[List[dict], operator.add]
     user_stories: Annotated[List[dict], operator.add]
     tasks: Annotated[List[dict], operator.add]
+
     # Sprint data
     sprints: Annotated[List[dict], operator.add]
+
+    # Project data
+    project_report: dict
+
     # Supervisor routing
     next: str
+
     # User input collection
     needs_user_input: bool  # Whether user input is needed
     user_question: Optional[str]  # Question to ask user
 
 
 prompt = """
-You are a Scrum Master supervisor tasked with coordinating between the Backlog Team and Sprint Team. Analyze the user's request and decide which team should act next.
+You are a Scrum Master supervisor tasked with coordinating between the Backlog Team, Sprint Team, and Project Team. Analyze the user's request and decide which team should act next.
 
 Your teams:
 - BacklogTeam: Handles creating/modifying use cases, epics, user stories, and tasks
 - SprintTeam: Handles sprint planning and sprint schedule adjustments
+- ProjectTeam: Handles project planning, progress monitoring, resource allocation, risk management, and final reporting
 
 IMPORTANT - Handling Information Requests:
-- If ANY sub-graph (BacklogTeam or SprintTeam) requests additional information from the user (e.g., 프로젝트 기간, 팀 구성, 상세 기획 등), you MUST respond with FINISH.
+- If ANY sub-graph (BacklogTeam, SprintTeam, or ProjectTeam) requests additional information from the user (e.g., 프로젝트 기간, 팀 구성, 상세 기획 등), you MUST respond with FINISH.
 - This allows the user to provide the missing information.
 - Examples of missing info: 프로젝트 기간, 팀원 수/구성, 상세 기획, 기술 스택, 프로젝트 목표
-- **Always ask questions and make requests in Korean.** (항상 한국어로 질문하고 요청하세요.)
-
-Guidelines:
-1. **Initial Request**: If the user asks to generate a backlog or plan a project, route to **BacklogTeam**.
-2. **Backlog Completion**: If BacklogTeam has finished (look for "BacklogTeam completed work"), route to **SprintTeam**.
-3. **Sprint Completion**: If SprintTeam has finished (look for "SprintTeam completed work"), and there are no further user requests, respond with **FINISH**.
-4. **Refinement**: 
-   - If the user specifically asks to modify backlog items, route to BacklogTeam.
-   - If the user specifically asks to adjust the schedule, route to SprintTeam.
-
-**CRITICAL**: Do NOT loop back to BacklogTeam after SprintTeam finishes unless the user explicitly asks for changes. If SprintTeam is done, just FINISH.
+- **Always ask questions and make requests in Korean.**
 
 Analyze the conversation history to understand what has been done and what needs to be done next.
 """
@@ -61,63 +59,18 @@ def get_next_node(state: ScrumState) -> str:
 
 
 async def create_scrum_agent_graph(config: Optional[RunnableConfig] = None):
-    if config is None:
-        config = RunnableConfig()
-
     backlog_team = await create_backlog_team_graph(config)
     sprint_team = await create_sprint_team_graph(config)
+    project_team = await create_project_team_graph(config)
     
-    # Define Nodes
-    async def supervisor_node(state: ScrumState):
+    members = ["BacklogTeam", "SprintTeam", "ProjectTeam"]
 
-        supervisor_agent = await create_team_supervisor(
-            MODEL_NAME,
-            prompt,
-            ["BacklogTeam", "SprintTeam"]
-        )
-        # Check if we just returned from collecting user input
-        if state.get("needs_user_input"):
-            # Reset the flag and continue processing
-            return {"needs_user_input": False, "user_question": None}
-        
-        # Invoke supervisor to make routing decision
-        result = supervisor_agent.invoke(state)
-        
-        # Check if the last message indicates need for user input
-        messages = state.get("messages", [])
-        if messages:
-            last_message = messages[-1]
-            if hasattr(last_message, 'content') and "NEED_USER_INPUT:" in str(last_message.content):
-                # Extract the question
-                content = str(last_message.content)
-                question = content.split("NEED_USER_INPUT:", 1)[1].strip()
-                return {
-                    "next": "FINISH",
-                    "needs_user_input": True,
-                    "user_question": question,
-                    "messages": [AIMessage(content=question)]
-                }
-        
-        # If Supervisor decided to FINISH and provided a reason, output it.
-        if result.next == "FINISH" and result.reason:
-             # Add the final schedule JSON if work is complete
-            messages = [AIMessage(content=result.reason, name="Supervisor")]
-            
-            if state.get("sprints"):
-                 schedule_data = {
-                     "type": "schedule",
-                     "sprints": state["sprints"]
-                 }
-                 # Add a separate message with JSON data
-                 messages.append(AIMessage(content=json.dumps(schedule_data), name="ScheduleBot"))
+    supervisor_agent = await create_team_supervisor(
+        MODEL_NAME,
+        prompt,
+        members,
+    )
 
-            return {
-                "next": result.next,
-                "messages": messages
-            }
-        
-        return {"next": result.next}
-    
     async def backlog_node(state: ScrumState):
         """Backlog team node - handles backlog generation."""
 
@@ -149,38 +102,49 @@ async def create_scrum_agent_graph(config: Optional[RunnableConfig] = None):
 
     async def sprint_node(state: ScrumState):
         tasks = state.get("tasks", [])
-        
-        response = await sprint_team.ainvoke({"tasks": tasks})
+        # Pass existing sprints if any, though usually we generate new ones
+        response = await sprint_team.ainvoke({"tasks": tasks, "messages": state.get("messages", [])})
         
         return {
             "sprints": response.get("sprints", []),
             "messages": [AIMessage(content="SprintTeam completed work.", name="SprintTeam")]
         }
 
-    # Build Graph
+    async def project_node(state: ScrumState):
+        sprints = state.get("sprints", [])
+        tasks = state.get("tasks", [])
+        
+        response = await project_team.ainvoke({"sprints": sprints, "tasks": tasks})
+        
+        # We might want to persist the report in state
+        report = response.get("project_report", {})
+        
+        return {
+            "project_report": report,
+            "messages": [AIMessage(content="ProjectTeam completed work.", name="ProjectTeam")]
+        }
+
     graph = StateGraph(ScrumState)
     
-    # Add nodes
-    graph.add_node("Supervisor", supervisor_node)
+    graph.add_node("Supervisor", supervisor_agent)
     graph.add_node("BacklogTeam", backlog_node)
     graph.add_node("SprintTeam", sprint_node)
+    graph.add_node("ProjectTeam", project_node)
     
-    # Set entry point to Supervisor
     graph.set_entry_point("Supervisor")
     
-    # Add conditional edges from Supervisor
     graph.add_conditional_edges(
         "Supervisor",
         get_next_node,
         {
             "BacklogTeam": "BacklogTeam",
             "SprintTeam": "SprintTeam",
+            "ProjectTeam": "ProjectTeam",
             "FINISH": END
         }
     )
     
-    # Teams return to Supervisor after completion
-    graph.add_edge("BacklogTeam", "Supervisor")
-    graph.add_edge("SprintTeam", "Supervisor")
-    
-    return graph.compile(checkpointer=memory)
+    for member in members:
+        graph.add_edge(member, "Supervisor")
+
+    return graph.compile(checkpointer=checkpointer)

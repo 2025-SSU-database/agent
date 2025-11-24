@@ -1,16 +1,16 @@
 [project]
-name = "senior-agent"
+name = "agent"
 version = "0.1.0"
 description = "Add your description here"
-requires-python = ">=3.13"
+readme = "README.md"
+requires-python = ">=3.11"
 dependencies = [
-    "langchain>=1.0.3",
-    "langchain-openai>=1.0.1",
-    "langgraph>=0.2.0",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.32.0",
-    "python-dotenv>=1.0.0",
-    "langchain-mcp-adapters>=0.1.12",
+    "dotenv>=0.9.9",
+    "fastapi>=0.121.3",
+    "langchain>=1.0.8",
+    "langchain-mcp-adapters>=0.1.13",
+    "langchain-openai>=1.0.3",
+    "langgraph>=1.0.3",
     "python-jose>=3.5.0",
-    "pytest>=9.0.1",
+    "uvicorn>=0.38.0",
 ]

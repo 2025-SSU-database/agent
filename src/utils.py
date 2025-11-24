@@ -9,20 +9,6 @@ async def ainvoke_graph(
     node_names: List[str] = [],
     callback: Callable = None,
 ):
-    """
-    LangGraph 앱의 실행 결과를 예쁘게 스트리밍하여 출력하는 함수입니다.
-
-    Args:
-        graph (CompiledStateGraph): 실행할 컴파일된 LangGraph 객체
-        inputs (dict): 그래프에 전달할 입력값 딕셔너리
-        config (RunnableConfig): 실행 설정
-        node_names (List[str], optional): 출력할 노드 이름 목록. 기본값은 빈 리스트
-        callback (Callable, optional): 각 청크 처리를 위한 콜백 함수. 기본값은 None
-            콜백 함수는 {"node": str, "content": str} 형태의 딕셔너리를 인자로 받습니다.
-
-    Returns:
-        None: 함수는 스트리밍 결과를 출력만 하고 반환값은 없습니다.
-    """
 
     def format_namespace(namespace):
         return namespace[-1].split(":")[0] if len(namespace) > 0 else "root graph"

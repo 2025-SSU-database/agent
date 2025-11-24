@@ -4,11 +4,14 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
+from dotenv import load_dotenv
+load_dotenv()
+
 async def create_team_supervisor(
   model_name, 
   system_prompt, 
   members, 
-  mcp_list: Optional[List[Dict[str, Any]]] = None, 
+  mcp_list: Optional[Dict[str, Any]] = None, 
   tools: Optional[List[Any]] = None
 ):
   options_for_next = ["FINISH"] + members
@@ -30,26 +33,23 @@ async def create_team_supervisor(
     ]
   ).partial(options=str(options_for_next))
 
-  tools = []
+  _tools = []
   
   if tools:
-    tools.extend(tools)
+    _tools.extend(tools)
 
   if mcp_list:
-    client = MultiServerMCPClient(*mcp_list)
+    client = MultiServerMCPClient(mcp_list)
     mcp_tools = await client.get_tools()
 
     print(f"Successfully loaded {len(mcp_tools)} MCP tools")
     
-    tools.extend(mcp_tools)
-
-  else:
-    print("No MCP tools provided")
+    _tools.extend(mcp_tools)
 
   llm = ChatOpenAI(model=model_name)
   
-  if tools:
-    llm = llm.bind_tools(tools)
+  if _tools:
+    llm = llm.bind_tools(_tools)
   
   supervisor_chain = prompt | llm.with_structured_output(RouteResponse)
 
