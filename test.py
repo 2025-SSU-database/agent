@@ -13,7 +13,6 @@ from pathlib import Path
 
 load_dotenv()
 
-
 def load_test_cases(json_path: str = "test_cases.json") -> List[Dict[str, Any]]:
     """
     JSON 파일에서 테스트 케이스를 로드합니다.
@@ -235,7 +234,7 @@ async def run_all_tests(
         config = {
             "configurable": {
                 "thread_id": str(uuid.uuid4()),
-                "token": "token"
+                "token": "eyJraWQiOiJRTHVWR1J4amJ4cVZwSUVHZWJTdWpvQWdjc1JOZ2FhckVucWFQcFJMRUM4PSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJmNDk4YWQ3Yy0wMGIxLTcwNGUtMWEzYS1jMjRlOTJlMzdhNjUiLCJjb2duaXRvOmdyb3VwcyI6WyJhcC1ub3J0aGVhc3QtMl93VWVOTlN5RGRfR29vZ2xlIl0sImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5hcC1ub3J0aGVhc3QtMi5hbWF6b25hd3MuY29tXC9hcC1ub3J0aGVhc3QtMl93VWVOTlN5RGQiLCJ2ZXJzaW9uIjoyLCJjbGllbnRfaWQiOiIxcHF0YWRzc2llOWp2ZXQzZmZkZzI2cnZpNiIsIm9yaWdpbl9qdGkiOiJjMjVmZWZiOC0wMjJhLTRmOGQtYTYxMS02OGJjMzc2MDBkNGMiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6Im9wZW5pZCBlbWFpbCIsImF1dGhfdGltZSI6MTc2Mzk1Njk4OSwiZXhwIjoxNzY0MDA5MjY4LCJpYXQiOjE3NjQwMDU2NjgsImp0aSI6IjJjZDJiZGI0LTdmMTMtNGEyNC05NmZlLTY1NTI0NWJjNmNjNiIsInVzZXJuYW1lIjoiZ29vZ2xlXzExMzQwOTAwMTQ4NjAyMzM0ODUwNyJ9.igBZe_9GXuL_oeRLsb59RqXF-WyrbwBZWoTU1Ere1dJN-koTDW5eYKtIPfrArJ_3nJcuc2UghMsrJMSX2R8-CqbS1ZELuoc1rhLYGynv-ZCgfaBqMvVHeK8tLcE_tSFbwim-61XVvnotYl_ZlZ0fJ6fNB1YSJOTHYaH40G8kGzuipJF1UKAa_Z6QTXt5dMEjlZut17RHJUa-vWdG_tE0AMT0Fn9L5OBepYUbknknM6H6ynkOSOf11olkLSVBE9RKCOAUFvmg0-oyySQ4sEwthLOhJBerhizU03rGm4rFBL_9zDYWeLL8sFIwvrKfZR9xD7kspaFbIfXd0fwGyIcRVw"
             }
         }
         

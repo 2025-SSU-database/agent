@@ -6,10 +6,7 @@ from langgraph.graph.state import RunnableConfig
 from dotenv import load_dotenv
 
 load_dotenv()
-async def setup_mcp_tools(
-    config: RunnableConfig, 
-    mcp_list: Dict[str, Any]
-) -> List[Any]:
+async def setup_mcp_tools(config: RunnableConfig) -> List[Any]:
     
     token = config.get("configurable", {}).get("token") if config else None
     
@@ -19,7 +16,16 @@ async def setup_mcp_tools(
         return []
     
     try:
-        client = MultiServerMCPClient(mcp_list)
+        client = MultiServerMCPClient({
+            "zenior": {
+                "transport": "streamable_http",
+                "url": os.getenv("ZENIOR_MCP_SERVER_URL"),
+                "headers": {
+                    "Authorization": f"Bearer {token}"
+                }
+            }
+        })
+
         mcp_tools = await client.get_tools()
         print(f"✓ Successfully loaded {len(mcp_tools)} MCP tools")
         return mcp_tools

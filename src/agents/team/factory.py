@@ -9,7 +9,10 @@ load_dotenv()
 class AgentFactory:
 
   def __init__(self, model_name: str):
-    self.llm = ChatOpenAI(model=model_name)
+    self.llm = ChatOpenAI(
+      model=model_name,
+      use_responses_api=True
+    )
   
   async def create_agent_node(self, agent, name: str, callback: Any):
 

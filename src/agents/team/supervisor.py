@@ -46,7 +46,7 @@ async def create_team_supervisor(
     
     _tools.extend(mcp_tools)
 
-  llm = ChatOpenAI(model=model_name)
+  llm = ChatOpenAI(model=model_name, use_responses_api=True)
   
   if _tools:
     llm = llm.bind_tools(_tools)
