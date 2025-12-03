@@ -7,6 +7,7 @@ name = "agent"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "assistant-stream" },
     { name = "dotenv" },
     { name = "fastapi" },
     { name = "langchain" },
@@ -20,6 +21,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "assistant-stream", specifier = ">=0.0.31" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi", specifier = ">=0.121.3" },
     { name = "langchain", specifier = ">=1.0.8" },
@@ -61,6 +63,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c6/78/7d432127c41b50bccba979505f272c16cbcadcc33645d5fa3a738110ae75/anyio-4.11.0.tar.gz", hash = "sha256:82a8d0b81e318cc5ce71a5f1f8b5c4e63619620b63141ef8c995fa0db95a57c4", size = 219094, upload-time = "2025-09-23T09:19:12.58Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/15/b3/9b1a8074496371342ec1e796a96f99c82c945a339cd81a8e73de28b4cf9e/anyio-4.11.0-py3-none-any.whl", hash = "sha256:0287e96f4d26d4149305414d4e3bc32f0dcd0862365a4bddea19d7a1ec38c4fc", size = 109097, upload-time = "2025-09-23T09:19:10.601Z" },
+]
+
+[[package]]
+name = "assistant-stream"
+version = "0.0.31"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5c/5f/42609e983dda3d91ff6f73cacb0ec30fefa297a9b0373c9dded162bddf47/assistant_stream-0.0.31.tar.gz", hash = "sha256:29ba83be657d6ac87a4a360630710a0bd94a78228d2791084e869917a25be64e", size = 72630, upload-time = "2025-10-27T18:41:50.329Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/47/17a4ac6742beb2e3e9d364b01c2e0b1fc338b61cfc9c3a45c2152bda0b4b/assistant_stream-0.0.31-py3-none-any.whl", hash = "sha256:ae520859c806e3ee72cb224bdf8a13c0ba125bbd868e17b9fba585173e3e6076", size = 20498, upload-time = "2025-10-27T18:41:48.849Z" },
 ]
 
 [[package]]

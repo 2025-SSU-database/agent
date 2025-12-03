@@ -1,128 +1,158 @@
-import { useState, useMemo, useRef } from "react";
-import {
-  AssistantRuntimeProvider,
-  useLocalRuntime,
-  type ChatModelAdapter,
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import { 
+  AssistantRuntimeProvider, 
+  makeAssistantToolUI,
+  useAssistantTransportRuntime,
+  unstable_createMessageConverter as createMessageConverter,
+  AssistantTransportConnectionMetadata
 } from "@assistant-ui/react";
+import {
+  convertLangChainMessages,
+  LangChainMessage,
+} from "@assistant-ui/react-langgraph"
 import { Thread } from "@/components/assistant-ui/thread";
-import "@assistant-ui/react/styles/index.css";
+import { DevToolsModal } from "@assistant-ui/react-devtools";
 import "./App.css";
+
+const createThread = async (token: string) => {
+  const res = await fetch("http://localhost:8000/threads", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    }
+  });
+
+  const { thread_id } = await res.json();
+
+  return thread_id;
+}
+
+const SelectWorkspaceToolUI = makeAssistantToolUI<
+  { workspaceId: string },
+  { workspaceId: string }
+>({
+  toolName: "request_workspace_selection",
+  render: ({ args, result, status, addResult, toolCallId, resume }) => {
+    const handleSelect = (workspaceId: string) => {
+      console.log("Calling addResult:", { 
+        workspaceId,
+        toolCallId  // 여기서 전달되는 toolCallId
+      });
+      addResult({ workspaceId });
+      // resume({ workspaceId });
+    };
+
+    if(result) {
+      return (
+        <div>
+          워크스페이스 선택 완료!
+          {result.workspaceId}
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        <div>{status.type}</div>
+        <div>{toolCallId}</div>
+        <h1>Select Workspace</h1>
+        <div>
+          <button onClick={() => handleSelect("123")}>123</button>
+        </div>
+      </div>
+    )
+  }
+})
+
+type State = {
+  messages: LangChainMessage[];
+};
+
+const LangChainMessageConverter = createMessageConverter(
+  convertLangChainMessages,
+);
+
+const converter = (
+  state: State,
+  connectionMetadata: AssistantTransportConnectionMetadata,
+) => {
+  const optimisticStateMessages = connectionMetadata.pendingCommands.map(
+    (c): LangChainMessage[] => {
+      if (c.type === "add-message") {
+        return [
+          {
+            type: "human" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: c.message.parts
+                  .map((p) => (p.type === "text" ? p.text : ""))
+                  .join("\n"),
+              },
+            ],
+          },
+        ];
+      }
+
+      if (c.type === "add-tool-result") {
+        return [
+          {
+            type: "tool" as const,
+            tool_call_id: c.toolCallId,
+            content: JSON.stringify(c.result),
+            name: c.toolName,
+            status: "success" as const,
+          }
+        ]
+      }
+      return [];
+    },
+  );
+  
+  const messages = [...state.messages, ...optimisticStateMessages.flat()];
+
+
+  return {
+    messages: LangChainMessageConverter.toThreadMessages(messages),
+    isRunning: connectionMetadata.isSending || false,
+  };
+};
 
 function App() {
   const [token, setToken] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [inputToken, setInputToken] = useState("");
-  const threadIdRef = useRef<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
-  // Create thread helper
-  const createThread = async (authToken: string): Promise<string> => {
-    const response = await fetch("/threads", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({ metadata: {} }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create thread: ${response.statusText}`);
+  const runtimeOptions = useMemo(() => ({
+    initialState: { messages: [] },
+    converter: converter,
+    api: "http://localhost:8000/assistant",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: {
+      threadId: threadId,
     }
+  }), [token, threadId])
 
-    const data = await response.json();
-    return data.thread_id;
-  };
-
-  // Create adapter for assistant-ui that calls backend API directly
-  const adapter: ChatModelAdapter = useMemo(
-    () => ({
-      async *run({ messages, abortSignal }) {
-        // Ensure we have a thread
-        if (!threadIdRef.current) {
-          threadIdRef.current = await createThread(token);
-        }
-
-        // Convert messages to backend format
-        const backendMessages = messages.map((msg) => ({
-          type: msg.role === "user" ? "human" : "ai",
-          content:
-            typeof msg.content === "string"
-              ? msg.content
-              : msg.content
-                .map((c) => (c.type === "text" ? c.text : ""))
-                .join(""),
-        }));
-
-        // Stream from backend
-        const response = await fetch(
-          `/threads/${threadIdRef.current}/runs/stream`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              assistant_id: "default",
-              input: {
-                messages: backendMessages,
-              },
-            }),
-            signal: abortSignal,
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to run thread: ${response.statusText}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("No response body");
-        }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let fullText = "";
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              if (!line.trim() || !line.startsWith("data: ")) continue;
-
-              try {
-                const data = JSON.parse(line.slice(6));
-
-                // Handle message chunks from backend
-                if (data.content && data.type === "ai") {
-                  fullText += data.content;
-
-                  // Yield in assistant-ui expected format
-                  yield {
-                    content: [{ type: "text", text: fullText }],
-                  };
-                }
-              } catch (e) {
-                console.error("Failed to parse SSE data:", e);
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-      },
-    }),
-    [token]
-  );
-
-  const runtime = useLocalRuntime(adapter);
+  const runtime = useAssistantTransportRuntime({
+    ...runtimeOptions,
+    onResponse: (response) => {
+      console.log("response", response);
+    },
+    onError: (error) => {
+      console.error("error", error);
+    },
+    onFinish: () => {
+      console.log("finish");
+    },
+    onCancel: () => {
+      console.log("cancel");
+    }
+  })
 
   const handleLogin = () => {
     if (inputToken.trim()) {
@@ -131,13 +161,14 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setToken("");
-    setInputToken("");
-    threadIdRef.current = null; // Reset thread on logout
-  };
-
+  useEffect(() => {
+    if(token && !threadId) {
+      createThread(token).then((newThreadId) => {
+        setThreadId(newThreadId);
+      });
+    }
+  }, [token, threadId])
+  
   if (!isAuthenticated) {
     return (
       <div className="auth-container">
@@ -162,16 +193,10 @@ function App() {
 
   return (
     <div className="app-container">
-      <div className="app-header">
-        <h2>🤖 Agent Chat UI</h2>
-        <button onClick={handleLogout} className="logout-button">
-          Logout
-        </button>
-      </div>
       <AssistantRuntimeProvider runtime={runtime}>
-        <div className="thread-container">
-          <Thread />
-        </div>
+        <Thread />
+        <SelectWorkspaceToolUI/>
+        <DevToolsModal />
       </AssistantRuntimeProvider>
     </div>
   );
