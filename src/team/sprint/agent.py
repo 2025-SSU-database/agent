@@ -32,15 +32,6 @@ class Sprint(BaseModel):
 class SprintOutput(BaseModel):
     sprints: Sprint
 
-@tool
-def request_project_selection(workspace_id: str) -> dict:
-    """
-    Request the user to select a project within a specific workspace.
-    Use this tool when you need a project_id to proceed (e.g., for creating a sprint) but one was not provided or is ambiguous.
-    """
-    project_id = interrupt("select project_id")
-    return project_id
-
 async def create_sprint_agent(config: RunnableConfig):
     llm = ChatOpenAI(
         model="gpt-4o", 
@@ -51,7 +42,7 @@ async def create_sprint_agent(config: RunnableConfig):
         name="SprintAgent",
     )
 
-    tools = [request_project_selection]
+    tools = []
 
     mcp_tools = await setup_mcp_tools(config)
 

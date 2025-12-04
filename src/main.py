@@ -119,7 +119,6 @@ async def chat_endpoint(
 
                 if isinstance(msg, (AIMessage, AIMessageChunk)):
                     if not msg.content and not msg.tool_calls:
-                        print(msg)
                         continue
                 
             state = get_tool_call_subgraph_state(

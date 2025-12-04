@@ -18,6 +18,16 @@ def request_workspace_selection() -> dict:
 
     return workspace_id
 
+@tool
+def request_project_selection() -> dict:
+    """
+    Request the user to select a project within a specific workspace.
+    Use this tool when you need a project_id to proceed (e.g., for creating a backlog) but one was not provided or is ambiguous.
+    """
+    
+    project_id = interrupt("select project_id")
+
+    return project_id
 
 async def create_project_agent(config: RunnableConfig):
     # 타임아웃 및 재시도 설정 추가
@@ -29,7 +39,7 @@ async def create_project_agent(config: RunnableConfig):
         request_timeout=120,  # 요청 타임아웃 120초
         name="ProjectAgent",
     )
-    tools = [request_workspace_selection]
+    tools = [request_workspace_selection, request_project_selection]
 
     mcp_tools = await setup_mcp_tools(config)
 
